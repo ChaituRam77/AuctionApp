@@ -1,12 +1,8 @@
 package com.rachait.biddingApp.Auction;
 
 import com.google.api.core.ApiFuture;
-import com.google.cloud.firestore.DocumentSnapshot;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.Query;
-import com.google.cloud.firestore.QueryDocumentSnapshot;
-import com.google.cloud.firestore.QuerySnapshot;
-import com.google.cloud.firestore.CollectionReference;
+import com.google.cloud.firestore.*;
+import com.google.firebase.cloud.FirestoreClient;
 
 import java.util.HashMap;
 import java.util.List;
@@ -79,4 +75,27 @@ public class Utils {
 
         return randomDoc;
     }
+
+    public void printAllValuesInDocument() throws Exception{
+        // Get the Firestore instance
+        Firestore firestore = FirestoreClient.getFirestore();
+
+        // Get a reference to the document you want to retrieve
+        DocumentReference docRef = firestore.collection("users").document("john");
+
+        // Retrieve the document and its fields
+        ApiFuture<DocumentSnapshot> future = docRef.get();
+        DocumentSnapshot document = future.get();
+
+        if (document.exists()) {
+            // Print all fields in the document
+            Map<String, Object> fields = document.getData();
+            for (Map.Entry<String, Object> entry : fields.entrySet()) {
+                System.out.println(entry.getKey() + " : " + entry.getValue());
+            }
+        } else {
+            System.out.println("No such document");
+        }
+    }
+
 }

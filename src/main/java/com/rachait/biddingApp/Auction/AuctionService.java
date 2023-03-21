@@ -1,25 +1,39 @@
 package com.rachait.biddingApp.Auction;
 
-
 import com.google.api.core.ApiFuture;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.firestore.*;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
 import com.google.firebase.cloud.FirestoreClient;
+import com.rachait.biddingApp.BiddingAppApplication;
+import com.rachait.biddingApp.Constants;
+import com.rachait.biddingApp.pojo.AssignToOwnerPojo;
+import com.rachait.biddingApp.pojo.Auction;
+import com.rachait.biddingApp.pojo.AuctionPlayer;
+import com.rachait.biddingApp.pojo.OwnersPojo;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 @Component
 public class AuctionService {
 
-    public String createAuctitonPlayer(Auction auction) throws ExecutionException, InterruptedException {
+    public String addAuctionPlayer(String basePrice,String category,AuctionPlayer auctionPlayer) throws ExecutionException, InterruptedException {
         Firestore dbFirestore = FirestoreClient.getFirestore();
-        ApiFuture<WriteResult> collectionsApiFuture = dbFirestore.collection("baseprice3").document(auction.getName()).set(auction);
-        return collectionsApiFuture.get().getUpdateTime().toString();
+        CollectionReference collectionRef = dbFirestore.collection(Constants.BASE_PRICE_CONST+basePrice+"_"+category);
+        ApiFuture<QuerySnapshot> querySnapshot = collectionRef.get();
+        List<QueryDocumentSnapshot> documents = querySnapshot.get().getDocuments();
+        String docId = String.valueOf(documents.size()+1);
+        DocumentReference docRef = collectionRef.document(docId);
+        WriteResult collectionsApiFuture = docRef.set(auctionPlayer, SetOptions.merge()).get();
+        return String.valueOf(collectionsApiFuture.getUpdateTime());
     }
 
-    public AuctionPlayer getAuctitonPlayer(String documentId) throws ExecutionException, InterruptedException {
+    public AuctionPlayer getAuctionPlayer(String documentId) throws ExecutionException, InterruptedException {
         Firestore dbFirestore = FirestoreClient.getFirestore();
         DocumentReference documentReference = dbFirestore.collection("baseprice3").document(documentId);
         ApiFuture<DocumentSnapshot> future = documentReference.get();
@@ -32,9 +46,9 @@ public class AuctionService {
         return null;
     }
 
-    public AuctionPlayer getRandomPlayer(String basePrice, String category) throws ExecutionException, InterruptedException {
+    public AuctionPlayer getRandomPlayer(String basePrice, String category) throws Exception {
         Firestore dbFirestore = FirestoreClient.getFirestore();
-        CollectionReference collectionRef = dbFirestore.collection("baseprice"+basePrice+"_"+category);
+        CollectionReference collectionRef = dbFirestore.collection(Constants.BASE_PRICE_CONST+basePrice+"_"+category);
 
         // Retrieve the documents in the collection
         ApiFuture<QuerySnapshot> querySnapshot = collectionRef.get();
@@ -53,13 +67,97 @@ public class AuctionService {
         return null;
     }
 
-    public String updateAuctitonPlayer(Auction auction) {
+    public String assignToOwner(AssignToOwnerPojo assignToOwnerPojo) throws Exception {
+        String collectionName = Constants.BASE_PRICE_CONST
+                +assignToOwnerPojo.getBasePrice()+"_"+assignToOwnerPojo.getCategory();
+        Firestore dbFirestore = FirestoreClient.getFirestore();
+        CollectionReference collectionRef = dbFirestore.collection(collectionName);
+        // Create a query to get all documents in the collection
+        Query query = collectionRef;
+        // Retrieve the documents in the query
+        ApiFuture<QuerySnapshot> querySnapshot = query.get();
+        String docId = null;
+        AuctionPlayer player;
+        for (QueryDocumentSnapshot document : querySnapshot.get().getDocuments()) {
+            player = document.toObject(AuctionPlayer.class);
+//            System.out.println(document.getId() + " => " + document.getData());
+            if (player.getName().equals(assignToOwnerPojo.getPlayerName())){
+                docId = document.getId();
+                break;
+            }
+        }
+        if (docId != null){
+            dbFirestore.collection(collectionName).document(docId).delete();
+            Map<String,Object> outerValue = new HashMap<>();
+            Map<String,Object> updateValue = new HashMap<>();
+            updateValue.put(assignToOwnerPojo.getPlayerName() ,assignToOwnerPojo.getBuyPrice());
+            outerValue.put(assignToOwnerPojo.getCategory(),updateValue);
+            dbFirestore.collection(Constants.OWNER_CONST)
+                    .document(assignToOwnerPojo.getOwnerName())
+                        .set(outerValue,SetOptions.merge());
+            DocumentReference docRef = dbFirestore.collection(Constants.OWNER_CONST)
+                    .document(assignToOwnerPojo.getOwnerName());
+            ApiFuture<DocumentSnapshot> future = docRef.get();
+            DocumentSnapshot document = future.get();
+            OwnersPojo op = null;
+            if (document.exists()) {
+                op = document.toObject(OwnersPojo.class);
+                System.out.println("Purse Value : "+op.getAPurse());
+            } else {
+                System.out.println("No such document");
+            }
+            ApiFuture<WriteResult> futurePurse = docRef.update(Constants.PURSE_CONST,
+                    op.getAPurse() - assignToOwnerPojo.getBuyPrice());
+            WriteResult result = futurePurse.get();
+            System.out.println("Update time : " + result.getUpdateTime());
+            return String.valueOf(result.getUpdateTime());
+        }
+        return null;
+    }
+
+    public String updateAuctionPlayer(Auction auction) {
         return "";
+    }
+
+    public Map<String, OwnersPojo> getOwersTeam() throws ExecutionException, InterruptedException {
+        Map<String, OwnersPojo> ownersTeam = new HashMap();
+        Firestore dbFirestore = FirestoreClient.getFirestore();
+        CollectionReference collectionRef = dbFirestore.collection(Constants.OWNER_CONST);
+        ApiFuture<QuerySnapshot> querySnapshot = collectionRef.get();
+        List<QueryDocumentSnapshot> documents = querySnapshot.get().getDocuments();
+        OwnersPojo ownersPojo;
+        for (QueryDocumentSnapshot document : documents) {
+            ownersPojo = document.toObject(OwnersPojo.class);
+            ownersTeam.put(
+                    document.getId(), ownersPojo);
+            System.out.println(document.getId() + " => " + document.getData());
+        }
+        return ownersTeam;
     }
 
     public String deleteAuctitonPlayer(String documentId) {
         Firestore dbFirestore = FirestoreClient.getFirestore();
         ApiFuture<WriteResult> collectionsApiFuture = dbFirestore.collection("baseprice3").document(documentId).delete();
         return "Successfully deleted!";
+    }
+
+    public static void main(String[] args) throws IOException {
+        AuctionService as = new AuctionService();
+        ClassLoader classLoader = BiddingAppApplication.class.getClassLoader();
+        File file =  new File(Objects.requireNonNull(classLoader.getResource("serviceAccountKey.json")).getFile());
+        FileInputStream serviceAccount = new FileInputStream(file.getAbsoluteFile());
+
+        FirebaseOptions options = new FirebaseOptions.Builder()
+                .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                .setDatabaseUrl("https://auction-c9885-default-rtdb.europe-west1.firebasedatabase.app")
+                .build();
+
+        FirebaseApp.initializeApp(options);
+        try {
+//            as.assignToOwner("3","batsman","Rohit","Chaitu",5);
+            System.out.println(as.getOwersTeam());;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

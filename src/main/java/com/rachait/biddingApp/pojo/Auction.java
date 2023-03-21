@@ -1,4 +1,4 @@
-package com.rachait.biddingApp.Auction;
+package com.rachait.biddingApp.pojo;
 
 import lombok.Getter;
 import lombok.Setter;
