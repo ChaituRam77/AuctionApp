@@ -11,7 +11,7 @@ public class Constants {
     public static final String BATSMAN_CONST = "batsman";
     public static final String BOWLER_CONST = "bowler";
     public static final String ALLROUNDER_CONST = "allrounder";
-    public static final String WICKETKEEEPER_CONST = "wicketKeeper";
+    public static final String WICKETKEEEPER_CONST = "wicketkeeper";
     public static final String PURSE_CONST = "aPurse";
     public static final int PRICE1_CONST = 1;
     public static final int PRICE3_CONST = 3;
