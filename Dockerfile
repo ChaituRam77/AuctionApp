@@ -1,6 +1,6 @@
-FROM openjdk:17-oracle
-ARG JAR_FILE=target/biddingApp-0.0.1-SNAPSHOT.jar
-COPY ${JAR_FILE} application.jar
+FROM eclipse-temurin:17-jdk-alpine
+VOLUME /tmp
+COPY target/*.jar biddingApp-0.0.1-SNAPSHOT.jar
+ENTRYPOINT ["java","-jar","/biddingApp-0.0.1-SNAPSHOT.jar"]
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/application.jar"]
 
