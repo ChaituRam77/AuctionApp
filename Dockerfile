@@ -1,6 +1,6 @@
 FROM eclipse-temurin:17-jdk-alpine
 VOLUME /tmp
-COPY target/*.jar biddingApp-0.0.1-SNAPSHOT.jar
-ENTRYPOINT ["java","-jar","/biddingApp-0.0.1-SNAPSHOT.jar"]
+COPY target/*.jar biddingApp.jar
+ENTRYPOINT ["java","-jar","/biddingApp.jar"]
 EXPOSE 8080
 
